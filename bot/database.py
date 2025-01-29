@@ -1,6 +1,7 @@
 import logging
 import os
 import sqlite3
+from typing import Optional
 
 
 DATABASE_PATH = os.path.join("data", "data.db")
@@ -8,6 +9,8 @@ logger = logging.getLogger("bot")
 
 
 def create_database() -> None:
+    create_dir()
+
     conn = sqlite3.connect(DATABASE_PATH, uri=True)
     cursor = conn.cursor()
 
@@ -25,6 +28,12 @@ def create_database() -> None:
 
     conn.close()
     logger.info("Tables were created")
+
+
+def create_dir() -> None:
+    dir_name = os.path.dirname(DATABASE_PATH)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name, exist_ok=True)
 
 
 def create_likes_table(cursor) -> None:
@@ -83,7 +92,7 @@ def check_if_user_registered(user_tg_id: int) -> bool:
     return user is not None
 
 
-def get_photo(user_tg_id: int) -> bytes:
+def get_photo(user_tg_id: int) -> Optional[bytes]:
     """
     :param user_tg_id: user ID in Telegram.
     :return: photo of user.
@@ -94,6 +103,8 @@ def get_photo(user_tg_id: int) -> bytes:
     cursor.execute("SELECT photo FROM photos WHERE user_tg_id = ?", (user_tg_id,))
     photo = cursor.fetchone()
     conn.close()
+    if photo is not None:
+        photo = photo[0]
     return photo
 
 
@@ -106,5 +117,31 @@ def register_user(user_tg_id: int, username: str) -> None:
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO users (user_tg_id, username) VALUES (?, ?)", (user_tg_id, username))
+    conn.commit()
+    conn.close()
+
+
+def save_user_photo(user_tg_id: int, photo: bytes) -> None:
+    """
+    :param user_tg_id: user ID in Telegram;
+    :param photo: new user photo.
+    """
+
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO photos (id, photo, user_tg_id) VALUES (NULL, ?, ?)", (photo, user_tg_id))
+    conn.commit()
+    conn.close()
+
+
+def update_user_photo(user_tg_id: int, photo: bytes) -> None:
+    """
+    :param user_tg_id: user ID in Telegram;
+    :param photo: new user photo.
+    """
+
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE photos SET photo = ? WHERE user_tg_id = ?", (photo, user_tg_id))
     conn.commit()
     conn.close()
